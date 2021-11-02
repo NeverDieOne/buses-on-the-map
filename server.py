@@ -8,8 +8,8 @@ import argparse
 import trio
 from trio_websocket import serve_websocket, ConnectionClosed
 
-from bus import Bus
-from window_bounds import WindowBounds
+from bus import Bus, BusValidationError
+from window_bounds import WindowBounds, WindowBoundsValidationError
 
 
 BUSES = {}
@@ -57,6 +57,11 @@ async def listen_browser(ws, window_bounds):
                     'msgType': 'Errors',
                     'errors': 'Requires valid JSON'
                 }))
+            except WindowBoundsValidationError as e:
+                await ws.send_message(json.dumps({
+                    'msgType': 'Errors',
+                    'errors': e
+                }))
         except ConnectionClosed:
             break
 
@@ -94,6 +99,11 @@ async def listen_server(request):
                 await ws.send_message(json.dumps({
                     'msgType': 'Errors',
                     'errors': 'Requires valid JSON'
+                }))
+            except BusValidationError as e:
+                await ws.send_message(json.dumps({
+                    'msgType': 'Errors',
+                    'errors': e
                 }))
         except ConnectionClosed:
             break
