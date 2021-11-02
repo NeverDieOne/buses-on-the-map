@@ -110,8 +110,8 @@ async def main():
                 )
 
             logger.info(f'Read {args.routes_number} routes files')
+            logger.info(f'Start {args.buses_per_route} buses per route')
             for route in islice(load_routes(), args.routes_number):
-                logger.info(f'Start {args.buses_per_route} buses on one route')
                 for bus_index in range(args.buses_per_route):
                     send_channel, _ = choice(channels)
                     nursery.start_soon(

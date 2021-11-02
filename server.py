@@ -1,11 +1,13 @@
 import json
 from functools import partial
+import logging
 
 import trio
 from trio_websocket import serve_websocket, ConnectionClosed
 
 
-buses = {}
+BUSES = {}
+logger = logging.getLogger()
 
 
 async def listen_server(request):
@@ -15,7 +17,7 @@ async def listen_server(request):
         try:
             message = await ws.get_message()
             bus_info = json.loads(message)
-            buses.update({bus_info['busId']: bus_info})
+            BUSES.update({bus_info['busId']: bus_info})
         except ConnectionClosed:
             break
 
@@ -27,7 +29,7 @@ async def talk_to_browser(request):
         try:
             await ws.send_message(json.dumps({
                 "msgType": "Buses",
-                "buses": list(buses.values())
+                "buses": list(BUSES.values())
             }))
             await trio.sleep(1)
         except ConnectionClosed:
@@ -35,6 +37,8 @@ async def talk_to_browser(request):
 
 
 async def main():
+    logging.basicConfig(level=logging.INFO)
+
     listen_fake_bus_partial = partial(
         serve_websocket,
         listen_server,
