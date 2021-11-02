@@ -10,6 +10,27 @@ BUSES = {}
 logger = logging.getLogger()
 
 
+async def listen_browser(ws):
+    while True:
+        try:
+            message = await ws.get_message()
+            logger.info(message)
+        except ConnectionClosed:
+            break
+
+
+async def send_browser(ws):
+    while True:
+        try:
+            await ws.send_message(json.dumps({
+                "msgType": "Buses",
+                "buses": list(BUSES.values())
+            }))
+            await trio.sleep(1)
+        except ConnectionClosed:
+            break
+
+
 async def listen_server(request):
     ws = await request.accept()
 
@@ -25,15 +46,9 @@ async def listen_server(request):
 async def talk_to_browser(request):
     ws = await request.accept()
 
-    while True:
-        try:
-            await ws.send_message(json.dumps({
-                "msgType": "Buses",
-                "buses": list(BUSES.values())
-            }))
-            await trio.sleep(1)
-        except ConnectionClosed:
-            break
+    async with trio.open_nursery() as nursery:
+        nursery.start_soon(send_browser, ws)
+        nursery.start_soon(listen_browser, ws)
 
 
 async def main():
