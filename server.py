@@ -48,9 +48,10 @@ async def listen_browser(ws, window_bounds):
         try:
             message = await ws.get_message()
             try:
-                serialized_bounds = json.loads(message)
-                if serialized_bounds.get('msgType') == 'newBounds':
-                    window_bounds.update(**serialized_bounds['data'])
+                serialized_message = json.loads(message)
+                if serialized_message.get('msgType') == 'newBounds':
+                    WindowBounds.validate(serialized_message)
+                    window_bounds.update(**serialized_message['data'])
             except json.JSONDecodeError:
                 await ws.send_message(json.dumps({
                     'msgType': 'Errors',
@@ -84,8 +85,11 @@ async def listen_server(request):
         try:
             message = await ws.get_message()
             try:
-                serialized_bus = json.loads(message)
-                BUSES.update({serialized_bus['busId']: Bus(**serialized_bus)})
+                serialized_message = json.loads(message)
+                Bus.validate(serialized_message)
+                BUSES.update({
+                    serialized_message['busId']: Bus(**serialized_message)
+                })
             except json.JSONDecodeError:
                 await ws.send_message(json.dumps({
                     'msgType': 'Errors',

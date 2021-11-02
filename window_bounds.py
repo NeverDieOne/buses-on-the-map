@@ -1,4 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
+
+
+class WindowBoundsValidationError(Exception):
+    pass
 
 
 @dataclass
@@ -19,3 +23,28 @@ class WindowBounds:
         self.north_lat = north_lat
         self.west_lng = west_lng
         self.east_lng = east_lng
+
+    @staticmethod
+    def validate(message):
+        errors = []
+        message_data = message.get('data')
+        message_type = message.get('msgType')
+
+        if not message_data:
+            errors.append('Data parameter is required')
+        if not message_type:
+            errors.append('msgType is required')
+        
+        if message_data:
+            for field in fields(WindowBounds):
+                field_name = field.name
+                field_type = field.type
+
+                if not message_data.get(field_name):
+                    errors.append(f'{field_name} is required')
+                else:
+                    if not isinstance(message_data.get(field_name), field_type):
+                        errors.append(f'{field_name} must be {field_type}')
+        
+        if errors:
+            raise WindowBoundsValidationError(errors)
