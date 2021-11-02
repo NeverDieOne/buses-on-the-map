@@ -72,8 +72,8 @@ def load_routes(directory_path='routes'):
 
 
 async def run_bus(send_channel, route_id, route, bus_index, args):
-    start_position = randint(1, 30)
-    for coordinate in cycle(islice(route, start_position, len(route))):
+    start_position = randint(1, 10)
+    for coordinate in cycle(route[start_position:]):
         lat, lng = coordinate
         await send_channel.send({
             'busId': generate_bus_id(route_id, bus_index, args.emulator_id),
