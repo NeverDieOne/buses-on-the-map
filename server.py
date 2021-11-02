@@ -1,7 +1,7 @@
 import json
 from functools import partial
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 from contextlib import suppress
 import argparse
 
