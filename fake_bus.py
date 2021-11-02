@@ -2,13 +2,63 @@ import json
 import os
 from itertools import cycle, islice
 from random import randint, choice
+from contextlib import suppress
+import argparse
+import time
+import logging
 
 import trio
 from trio_websocket import open_websocket_url
 
 
-def generate_bus_id(route_id, bus_index):
-    return f'{route_id}-{bus_index}'
+logger = logging.getLogger(__name__)
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Fake bus')
+    parser.add_argument(
+        '-s', '--server',
+        help='Адрес сервера',
+        default='ws://localhost:8080'
+    )
+    parser.add_argument(
+        '-rn', '--routes_number',
+        help='Количество маршрутов',
+        type=int
+    )
+    parser.add_argument(
+        '-bpr', '--buses_per_route',
+        help='Количество автобусов на маршруте',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '-wsn', '--websocket_number',
+        help='Количество открытых вебсокетов',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '-emid', '--emulator_id',
+        help='Префикс к busId на случай запуска нескольких экземпляров',
+        default=time.time()
+    )
+    parser.add_argument(
+        '-rt', '--refresh_timeout',
+        help='Задержка в обновлении координат сервера',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        help='Показывать логи',
+        action='store_false'
+    )
+    return parser.parse_args()
+
+
+def generate_bus_id(route_id, bus_index, emulator_id):
+    return f'{route_id}-{bus_index}-{emulator_id}'
 
 
 def load_routes(directory_path='routes'):
@@ -19,17 +69,17 @@ def load_routes(directory_path='routes'):
                 yield json.load(file)
 
 
-async def run_bus(send_channel, route_id, route, bus_index):
+async def run_bus(send_channel, route_id, route, bus_index, args):
     start_position = randint(1, 30)
     for coordinate in cycle(islice(route, start_position, len(route))):
         lat, lng = coordinate
         await send_channel.send({
-            'busId': generate_bus_id(route_id, bus_index),
+            'busId': generate_bus_id(route_id, bus_index, args.emulator_id),
             'lat': lat,
             'lng': lng,
             'route': route_id
         })
-        await trio.sleep(1)
+        await trio.sleep(args.refresh_timeout)
 
 
 async def send_updates(server_address, reveive_channel):
@@ -39,29 +89,36 @@ async def send_updates(server_address, reveive_channel):
 
 
 async def main():
-    channels = [trio.open_memory_channel(0) for _ in range(50)]
+    args = get_args()
 
-    try:
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    logger.info(f'Open {args.websocket_number} channels')
+    channels = [trio.open_memory_channel(0) for _ in range(args.websocket_number)]
+
+    with suppress(KeyboardInterrupt):
         async with trio.open_nursery() as nursery:
             for _, receive_channel in channels:
                 nursery.start_soon(
                     send_updates,
-                    'ws://localhost:8080',
+                    args.server,
                     receive_channel
                 )
 
-            for route in load_routes():
-                for bus_index in range(35):
+            logger.info(f'Read {args.routes_number} routes files')
+            for route in islice(load_routes(), args.routes_number):
+                logger.info(f'Start {args.buses_per_route} buses on one route')
+                for bus_index in range(args.buses_per_route):
                     send_channel, _ = choice(channels)
                     nursery.start_soon(
                         run_bus,
                         send_channel,
                         route['name'],
                         route['coordinates'],
-                        bus_index
+                        bus_index,
+                        args
                     )
-    except Exception as e:
-        print(e)
 
 
 if __name__ == '__main__':
