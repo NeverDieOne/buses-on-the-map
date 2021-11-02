@@ -47,7 +47,15 @@ async def listen_browser(ws, window_bounds):
     while True:
         try:
             message = await ws.get_message()
-            window_bounds.update(**json.loads(message)['data'])
+            try:
+                serialized_bounds = json.loads(message)
+                if serialized_bounds.get('msgType') == 'newBounds':
+                    window_bounds.update(**serialized_bounds['data'])
+            except json.JSONDecodeError:
+                await ws.send_message(json.dumps({
+                    'msgType': 'Errors',
+                    'errors': 'Requires valid JSON'
+                }))
         except ConnectionClosed:
             break
 
@@ -75,8 +83,14 @@ async def listen_server(request):
     while True:
         try:
             message = await ws.get_message()
-            bus_info = json.loads(message)
-            BUSES.update({bus_info['busId']: Bus(**bus_info)})
+            try:
+                serialized_bus = json.loads(message)
+                BUSES.update({serialized_bus['busId']: Bus(**serialized_bus)})
+            except json.JSONDecodeError:
+                await ws.send_message(json.dumps({
+                    'msgType': 'Errors',
+                    'errors': 'Requires valid JSON'
+                }))
         except ConnectionClosed:
             break
 
