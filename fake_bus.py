@@ -1,5 +1,6 @@
 import json
 import os
+from itertools import cycle
 
 import trio
 from trio_websocket import open_websocket_url
@@ -15,7 +16,7 @@ def load_routes(directory_path='routes'):
 
 async def run_bus(url, bus_id, route):
     async with open_websocket_url(url) as ws:
-        for coordinate in route:
+        for coordinate in cycle(route):
             lat, lng = coordinate
             message = {
                 'busId': bus_id,
@@ -25,7 +26,7 @@ async def run_bus(url, bus_id, route):
             }
 
             await ws.send_message(json.dumps(message, ensure_ascii=False))
-            await trio.sleep(1)
+            await trio.sleep(0.1)
 
 
 async def main():
