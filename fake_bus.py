@@ -1,17 +1,16 @@
-import json
-import os
-from itertools import cycle, islice
-from random import randint, choice
-from contextlib import suppress
 import argparse
-import time
+import json
 import logging
+import os
+import time
+from contextlib import suppress
+from itertools import cycle, islice
+from random import choice, randint
 
 import trio
 from trio_websocket import open_websocket_url
 
 from async_decorators import relaunch_on_disconnect
-
 
 logger = logging.getLogger(__name__)
 

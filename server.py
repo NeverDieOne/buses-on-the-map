@@ -1,16 +1,15 @@
-import json
-from functools import partial
-import logging
-from dataclasses import asdict
-from contextlib import suppress
 import argparse
+import json
+import logging
+from contextlib import suppress
+from dataclasses import asdict
+from functools import partial
 
 import trio
-from trio_websocket import serve_websocket, ConnectionClosed
+from trio_websocket import ConnectionClosed, serve_websocket
 
 from bus import Bus, BusValidationError
 from window_bounds import WindowBounds, WindowBoundsValidationError
-
 
 BUSES = {}
 logger = logging.getLogger()

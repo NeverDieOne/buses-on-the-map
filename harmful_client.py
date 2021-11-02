@@ -1,7 +1,8 @@
-import trio
-from trio_websocket import open_websocket_url
 import json
 import logging
+
+import trio
+from trio_websocket import open_websocket_url
 
 
 async def main():

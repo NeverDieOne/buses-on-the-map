@@ -2,7 +2,7 @@ import functools
 import logging
 
 import trio
-from trio_websocket import HandshakeError, ConnectionClosed
+from trio_websocket import ConnectionClosed, HandshakeError
 
 logger = logging.getLogger(__name__)
 
