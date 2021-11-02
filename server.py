@@ -115,7 +115,6 @@ async def talk_to_browser(request):
         nursery.start_soon(send_buses, ws, window_bounds)
 
 
-
 async def main():
     args = get_args()
 
