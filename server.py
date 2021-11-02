@@ -8,37 +8,12 @@ import argparse
 import trio
 from trio_websocket import serve_websocket, ConnectionClosed
 
+from bus import Bus
+from window_bounds import WindowBounds
+
 
 BUSES = {}
 logger = logging.getLogger()
-
-
-@dataclass
-class Bus:
-    busId: str
-    lat: float
-    lng: float
-    route: str
-
-
-@dataclass
-class WindowBounds:
-    south_lat: float = 0.0
-    north_lat: float = 0.0
-    west_lng: float = 0.0
-    east_lng: float = 0.0
-
-    def is_inside(self, lat, lng):
-        return all([
-            self.south_lat < lat < self.north_lat,
-            self.west_lng < lng < self.east_lng
-        ])
-
-    def update(self, south_lat, north_lat, west_lng, east_lng):
-        self.south_lat = south_lat
-        self.north_lat = north_lat
-        self.west_lng = west_lng
-        self.east_lng = east_lng
 
 
 def get_args():
@@ -121,24 +96,26 @@ async def main():
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
 
-    listen_fake_bus_partial = partial(
-        serve_websocket,
-        listen_server,
-        args.server,
-        args.bus_port,
-        ssl_context=None
-    )
-    talk_to_browser_partial = partial(
-        serve_websocket,
-        talk_to_browser,
-        args.server,
-        args.browser_port,
-        ssl_context=None
-    )
     with suppress(KeyboardInterrupt):
         async with trio.open_nursery() as nursery:
-            nursery.start_soon(listen_fake_bus_partial)
-            nursery.start_soon(talk_to_browser_partial)
+            nursery.start_soon(
+                partial(
+                    serve_websocket,
+                    listen_server,
+                    args.server,
+                    args.bus_port,
+                    ssl_context=None
+                )
+            )
+            nursery.start_soon(
+                partial(
+                    serve_websocket,
+                    talk_to_browser,
+                    args.server,
+                    args.browser_port,
+                    ssl_context=None
+                    )
+                )
 
 
 if __name__ == '__main__':   
