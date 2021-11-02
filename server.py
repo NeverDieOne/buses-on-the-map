@@ -1,39 +1,59 @@
 import json
 from functools import partial
 import logging
+from dataclasses import dataclass, asdict
 
 import trio
 from trio_websocket import serve_websocket, ConnectionClosed
 
 
 BUSES = {}
-BOUNDS = None
 logger = logging.getLogger()
 
 
-def is_inside(bounds, lat, lng):
-    return all([
-        bounds['south_lat'] < lat < bounds['north_lat'],
-        bounds['west_lng'] < lng < bounds['east_lng']
-    ])
+@dataclass
+class Bus:
+    busId: str
+    lat: float
+    lng: float
+    route: str
 
 
-async def listen_browser(ws):
+@dataclass
+class WindowBounds:
+    south_lat: float = 0.0
+    north_lat: float = 0.0
+    west_lng: float = 0.0
+    east_lng: float = 0.0
+
+    def is_inside(self, lat, lng):
+        return all([
+            self.south_lat < lat < self.north_lat,
+            self.west_lng < lng < self.east_lng
+        ])
+
+    def update(self, south_lat, north_lat, west_lng, east_lng):
+        self.south_lat = south_lat
+        self.north_lat = north_lat
+        self.west_lng = west_lng
+        self.east_lng = east_lng
+
+
+async def listen_browser(ws, window_bounds):
     while True:
         try:
-            global BOUNDS
             message = await ws.get_message()
-            BOUNDS = json.loads(message)['data']
+            window_bounds.update(**json.loads(message)['data'])
         except ConnectionClosed:
-            break
+            logger.info('Browser connection lost')
 
 
-async def send_buses(ws):
+async def send_buses(ws, window_bounds):
     while True:
         try:
             buses = [
-                bus for bus in list(BUSES.values())
-                if is_inside(BOUNDS, bus['lat'], bus['lng'])
+                asdict(bus) for bus in list(BUSES.values())
+                if window_bounds.is_inside(bus.lat, bus.lng)
             ]
 
             await ws.send_message(json.dumps({
@@ -42,7 +62,7 @@ async def send_buses(ws):
             }))
             await trio.sleep(1)
         except ConnectionClosed:
-            break
+            logger.info('Browser connection lost')
 
 
 async def listen_server(request):
@@ -52,17 +72,19 @@ async def listen_server(request):
         try:
             message = await ws.get_message()
             bus_info = json.loads(message)
-            BUSES.update({bus_info['busId']: bus_info})
+            BUSES.update({bus_info['busId']: Bus(**bus_info)})
         except ConnectionClosed:
-            break
+            logger.info('Browser connection lost')
 
 
 async def talk_to_browser(request):
     ws = await request.accept()
 
+    window_bounds = WindowBounds()
+
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(listen_browser, ws)
-        nursery.start_soon(send_buses, ws)
+        nursery.start_soon(listen_browser, ws, window_bounds)
+        nursery.start_soon(send_buses, ws, window_bounds)
 
 
 async def main():
