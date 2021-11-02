@@ -2,6 +2,8 @@ import json
 from functools import partial
 import logging
 from dataclasses import dataclass, asdict
+from contextlib import suppress
+import argparse
 
 import trio
 from trio_websocket import serve_websocket, ConnectionClosed
@@ -37,6 +39,33 @@ class WindowBounds:
         self.north_lat = north_lat
         self.west_lng = west_lng
         self.east_lng = east_lng
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Bus server')
+    parser.add_argument(
+        '-s', '--server',
+        help='Адрес сервера',
+        default='127.0.0.1'
+    )
+    parser.add_argument(
+        '-bp', '--bus_port',
+        help='Под для имитатора автобусов',
+        default=8080,
+        type=int
+    )
+    parser.add_argument(
+        '-brp', '--browser_port',
+        help='Порт для браузера',
+        default=8000,
+        type=int
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        help='Настройка логирования',
+        action='store_true'
+    )
+    return parser.parse_args()
 
 
 async def listen_browser(ws, window_bounds):
@@ -81,32 +110,36 @@ async def talk_to_browser(request):
     ws = await request.accept()
 
     window_bounds = WindowBounds()
-
     async with trio.open_nursery() as nursery:
         nursery.start_soon(listen_browser, ws, window_bounds)
         nursery.start_soon(send_buses, ws, window_bounds)
 
 
+
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    args = get_args()
+
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO)
 
     listen_fake_bus_partial = partial(
         serve_websocket,
         listen_server,
-        '127.0.0.1',
-        8080,
+        args.server,
+        args.bus_port,
         ssl_context=None
     )
     talk_to_browser_partial = partial(
         serve_websocket,
         talk_to_browser,
-        '127.0.0.1',
-        8000,
+        args.server,
+        args.browser_port,
         ssl_context=None
     )
-    async with trio.open_nursery() as nursery:
-        nursery.start_soon(listen_fake_bus_partial)
-        nursery.start_soon(talk_to_browser_partial)
+    with suppress(KeyboardInterrupt):
+        async with trio.open_nursery() as nursery:
+            nursery.start_soon(listen_fake_bus_partial)
+            nursery.start_soon(talk_to_browser_partial)
 
 
 if __name__ == '__main__':   
