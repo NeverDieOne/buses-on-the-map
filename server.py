@@ -47,23 +47,23 @@ async def listen_browser(ws, window_bounds):
     while True:
         try:
             message = await ws.get_message()
-            try:
-                serialized_message = json.loads(message)
-                if serialized_message.get('msgType') == 'newBounds':
-                    WindowBounds.validate(serialized_message)
-                    window_bounds.update(**serialized_message['data'])
-            except json.JSONDecodeError:
-                await ws.send_message(json.dumps({
-                    'msgType': 'Errors',
-                    'errors': 'Requires valid JSON'
-                }))
-            except WindowBoundsValidationError as e:
-                await ws.send_message(json.dumps({
-                    'msgType': 'Errors',
-                    'errors': e
-                }))
+            serialized_message = json.loads(message)
+            if serialized_message.get('msgType') == 'newBounds':
+                WindowBounds.validate(serialized_message)
+                window_bounds.update(**serialized_message['data'])
         except ConnectionClosed:
             break
+    
+        except json.JSONDecodeError:
+            await ws.send_message(json.dumps({
+                'msgType': 'Errors',
+                'errors': 'Requires valid JSON'
+            }))
+        except WindowBoundsValidationError as e:
+            await ws.send_message(json.dumps({
+                'msgType': 'Errors',
+                'errors': e.args
+            }))
 
 
 async def send_buses(ws, window_bounds):
@@ -89,24 +89,23 @@ async def listen_server(request):
     while True:
         try:
             message = await ws.get_message()
-            try:
-                serialized_message = json.loads(message)
-                Bus.validate(serialized_message)
-                BUSES.update({
-                    serialized_message['busId']: Bus(**serialized_message)
-                })
-            except json.JSONDecodeError:
-                await ws.send_message(json.dumps({
-                    'msgType': 'Errors',
-                    'errors': 'Requires valid JSON'
-                }))
-            except BusValidationError as e:
-                await ws.send_message(json.dumps({
-                    'msgType': 'Errors',
-                    'errors': e
-                }))
+            serialized_message = json.loads(message)
+            Bus.validate(serialized_message)
+            BUSES.update({
+                serialized_message['busId']: Bus(**serialized_message)
+            })
         except ConnectionClosed:
             break
+        except json.JSONDecodeError:
+            await ws.send_message(json.dumps({
+                'msgType': 'Errors',
+                'errors': 'Requires valid JSON'
+            }))
+        except BusValidationError as e:
+            await ws.send_message(json.dumps({
+                'msgType': 'Errors',
+                'errors': e.args
+            }))
 
 
 async def talk_to_browser(request):
