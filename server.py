@@ -7,6 +7,7 @@ from trio_websocket import serve_websocket, ConnectionClosed
 
 
 BUSES = {}
+BOUNDS = None
 logger = logging.getLogger()
 
 
@@ -20,25 +21,24 @@ def is_inside(bounds, lat, lng):
 async def listen_browser(ws):
     while True:
         try:
+            global BOUNDS
             message = await ws.get_message()
-            bounds = json.loads(message)
-
-            counter = 0
-            for bus in BUSES.values():
-                if is_inside(bounds['data'], bus['lat'], bus['lng']):
-                    counter += 1
-            logger.info(counter)
-
+            BOUNDS = json.loads(message)['data']
         except ConnectionClosed:
             break
 
 
-async def send_browser(ws):
+async def send_buses(ws):
     while True:
         try:
+            buses = [
+                bus for bus in list(BUSES.values())
+                if is_inside(BOUNDS, bus['lat'], bus['lng'])
+            ]
+
             await ws.send_message(json.dumps({
                 "msgType": "Buses",
-                "buses": list(BUSES.values())
+                "buses": buses
             }))
             await trio.sleep(1)
         except ConnectionClosed:
@@ -61,8 +61,8 @@ async def talk_to_browser(request):
     ws = await request.accept()
 
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(send_browser, ws)
         nursery.start_soon(listen_browser, ws)
+        nursery.start_soon(send_buses, ws)
 
 
 async def main():
