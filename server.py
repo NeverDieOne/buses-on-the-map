@@ -10,11 +10,25 @@ BUSES = {}
 logger = logging.getLogger()
 
 
+def is_inside(bounds, lat, lng):
+    return all([
+        bounds['south_lat'] < lat < bounds['north_lat'],
+        bounds['west_lng'] < lng < bounds['east_lng']
+    ])
+
+
 async def listen_browser(ws):
     while True:
         try:
             message = await ws.get_message()
-            logger.info(message)
+            bounds = json.loads(message)
+
+            counter = 0
+            for bus in BUSES.values():
+                if is_inside(bounds['data'], bus['lat'], bus['lng']):
+                    counter += 1
+            logger.info(counter)
+
         except ConnectionClosed:
             break
 
