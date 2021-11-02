@@ -10,6 +10,8 @@ import logging
 import trio
 from trio_websocket import open_websocket_url
 
+from async_decorators import relaunch_on_disconnect
+
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,7 @@ def get_args():
     parser.add_argument(
         '-v', '--verbose',
         help='Показывать логи',
-        action='store_false'
+        action='store_true'
     )
     return parser.parse_args()
 
@@ -82,6 +84,7 @@ async def run_bus(send_channel, route_id, route, bus_index, args):
         await trio.sleep(args.refresh_timeout)
 
 
+@relaunch_on_disconnect
 async def send_updates(server_address, reveive_channel):
     async with open_websocket_url(server_address) as ws:
         async for message in reveive_channel:
