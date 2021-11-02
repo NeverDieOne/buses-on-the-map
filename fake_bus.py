@@ -1,7 +1,7 @@
 import json
 import os
 from itertools import cycle, islice
-from random import randint
+from random import randint, choice
 
 import trio
 from trio_websocket import open_websocket_url
@@ -19,30 +19,43 @@ def load_routes(directory_path='routes'):
                 yield json.load(file)
 
 
-async def run_bus(url, route_id, route, bus_index):
-    async with open_websocket_url(url) as ws:
-        start_position = randint(1, 30)
-        for coordinate in cycle(islice(route, start_position, len(route))):
-            lat, lng = coordinate
-            message = {
-                'busId': generate_bus_id(route_id, bus_index),
-                'lat': lat,
-                'lng': lng,
-                'route': route_id
-            }
+async def run_bus(send_channel, route_id, route, bus_index):
+    start_position = randint(1, 30)
+    for coordinate in cycle(islice(route, start_position, len(route))):
+        lat, lng = coordinate
+        await send_channel.send({
+            'busId': generate_bus_id(route_id, bus_index),
+            'lat': lat,
+            'lng': lng,
+            'route': route_id
+        })
+        await trio.sleep(1)
 
+
+async def send_updates(server_address, reveive_channel):
+    async with open_websocket_url(server_address) as ws:
+        async for message in reveive_channel:
             await ws.send_message(json.dumps(message, ensure_ascii=False))
-            await trio.sleep(1)
 
 
 async def main():
+    channels = [trio.open_memory_channel(0) for _ in range(50)]
+
     try:
         async with trio.open_nursery() as nursery:
+            for _, receive_channel in channels:
+                nursery.start_soon(
+                    send_updates,
+                    'ws://localhost:8080',
+                    receive_channel
+                )
+
             for route in load_routes():
-                for bus_index in range(2):
+                for bus_index in range(35):
+                    send_channel, _ = choice(channels)
                     nursery.start_soon(
                         run_bus,
-                        'ws://localhost:8080',
+                        send_channel,
                         route['name'],
                         route['coordinates'],
                         bus_index
