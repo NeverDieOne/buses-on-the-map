@@ -52,7 +52,6 @@ async def listen_browser(ws, window_bounds):
                 window_bounds.update(**serialized_message['data'])
         except ConnectionClosed:
             break
-    
         except json.JSONDecodeError:
             await ws.send_message(json.dumps({
                 'msgType': 'Errors',
