@@ -49,7 +49,7 @@ async def listen_browser(ws, window_bounds):
             message = await ws.get_message()
             window_bounds.update(**json.loads(message)['data'])
         except ConnectionClosed:
-            logger.info('Browser connection lost')
+            break
 
 
 async def send_buses(ws, window_bounds):
@@ -66,7 +66,7 @@ async def send_buses(ws, window_bounds):
             }))
             await trio.sleep(1)
         except ConnectionClosed:
-            logger.info('Browser connection lost')
+            break
 
 
 async def listen_server(request):
@@ -78,7 +78,7 @@ async def listen_server(request):
             bus_info = json.loads(message)
             BUSES.update({bus_info['busId']: Bus(**bus_info)})
         except ConnectionClosed:
-            logger.info('Browser connection lost')
+            break
 
 
 async def talk_to_browser(request):
