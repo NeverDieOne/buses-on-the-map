@@ -46,10 +46,10 @@ async def listen_browser(ws, window_bounds):
     while True:
         try:
             message = await ws.get_message()
-            serialized_message = json.loads(message)
-            if serialized_message.get('msgType') == 'newBounds':
-                WindowBounds.validate(serialized_message)
-                window_bounds.update(**serialized_message['data'])
+            deserialized_message = json.loads(message)
+            if deserialized_message.get('msgType') == 'newBounds':
+                WindowBounds.validate(deserialized_message)
+                window_bounds.update(**deserialized_message['data'])
         except ConnectionClosed:
             break
         except json.JSONDecodeError:
@@ -87,10 +87,10 @@ async def listen_server(request):
     while True:
         try:
             message = await ws.get_message()
-            serialized_message = json.loads(message)
-            Bus.validate(serialized_message)
+            deserialized_message = json.loads(message)
+            Bus.validate(deserialized_message)
             BUSES.update({
-                serialized_message['busId']: Bus(**serialized_message)
+                deserialized_message['busId']: Bus(**deserialized_message)
             })
         except ConnectionClosed:
             break
