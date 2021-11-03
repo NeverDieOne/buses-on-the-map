@@ -70,18 +70,20 @@ def load_routes(directory_path='routes'):
                 yield json.load(file)
 
 
-async def run_bus(send_channel, route_id, route, bus_index, args):
+async def run_bus(
+    send_channel, route_id, route, bus_index, emulator_id, refresh_timeout
+):
     start_position = randint(1, 10)
     cycle_route = route[start_position:] + list(reversed(route[start_position:]))
     for coordinate in cycle(cycle_route):
         lat, lng = coordinate
         await send_channel.send({
-            'busId': generate_bus_id(route_id, bus_index, args.emulator_id),
+            'busId': generate_bus_id(route_id, bus_index, emulator_id),
             'lat': lat,
             'lng': lng,
             'route': route_id
         })
-        await trio.sleep(args.refresh_timeout)
+        await trio.sleep(refresh_timeout)
 
 
 @relaunch_on_disconnect
@@ -120,7 +122,8 @@ async def main():
                         route['name'],
                         route['coordinates'],
                         bus_index,
-                        args
+                        args.emulator_id,
+                        args.refresh_timeout
                     )
 
 
