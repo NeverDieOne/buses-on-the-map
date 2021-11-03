@@ -87,9 +87,9 @@ async def run_bus(
 
 
 @relaunch_on_disconnect
-async def send_updates(server_address, reveive_channel):
+async def send_updates(server_address, receive_channel):
     async with open_websocket_url(server_address) as ws:
-        async for message in reveive_channel:
+        async for message in receive_channel:
             await ws.send_message(json.dumps(message, ensure_ascii=False))
 
 
